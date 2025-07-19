@@ -1,3 +1,8 @@
+const { calculateAdjust } = require("./utils");
+
+/**
+ * @implements {IActivable}
+ */
 class Neuron {
 	/**
 	 * Controls how much the weights are adjusted in each training iteration.
@@ -39,11 +44,16 @@ class Neuron {
 	/**
 	 * Activation function applied to the weighted sum of the inputs.
 	 * @type {function}
-	 * @private
 	 */
 	#derivateFunction;
 
-	constructor(inputsNumber, activationFunction, derivateFunction, learningRate = 0.1) {
+	/**
+	 * The output of the neuron after applying the activation function to the weighted sum of the inputs.
+	 * @type {number}
+	 */
+	#output;
+
+	constructor(inputsNumber, activationFunction, derivateFunction, learningRate = 0.1, name = "") {
 		this.#learningRate = learningRate;
 		this.#inputsNumber = inputsNumber;
 		this.#activationFunction = activationFunction;
@@ -56,6 +66,13 @@ class Neuron {
 		this.#bias = Math.random() * 2 - 1;
 	}
 
+	get Output() {
+		return this.#output;
+	}
+
+	get Weights() {
+		return this.#weights;
+	}
 
 	/**
 	 * Method that activates the neuron with the provided inputs.
@@ -68,22 +85,36 @@ class Neuron {
 		for (let i = 0; i < this.#inputsNumber; i++) {
 			sum += inputs[i] * this.#weights[i];
 		}
-		
-		
-		return this.#activationFunction(sum);
+
+		this.#output = this.#activationFunction(sum);
+		return this.#output;
 	}
 
 	/**
 	 * Method that trains the neuron with a dataset.
 	 * @param {{ entrada: any[], salida: number }} dataset Array of objects containing 'entrada' and 'salida'.
-	 * @param {number} epocas Number of times the data will be iterated over to train the neuron.
+	 * @param {number} epochs Number of times the data will be iterated over to train the neuron.
 	 */
-	training(dataset, epocas) {
-		for (let i = 0; i < epocas; ++i) {
+	training(dataset, epochs) {
+		for (let i = 0; i < epochs; ++i) {
 			for (const data of dataset) {
 				this.#train(data.inputs, data.output);
 			}
 		}
+	}
+
+	/**
+	 * Adjusts the weights and bias of the neuron based on the inputs, the calculated gradient, and the learning rate.
+	 * This method is crucial for the neuron's learning process, as it modifies the internal parameters to minimize
+	 * the error between the expected output and the obtained output.
+	 * @param {*} inputs
+	 * @param {number} gradient
+	 */
+	adjust(inputs, gradient) {
+		for (let i = 0; i < this.#inputsNumber; i++) {
+			this.#weights[i] += inputs[i] * gradient * this.#learningRate;
+		}
+		this.#bias += gradient * this.#learningRate;
 	}
 
 	/**
@@ -93,33 +124,9 @@ class Neuron {
 	 */
 	#train(inputs, expectedOutput) {
 		const computedOutput = this.activate(inputs);
-		const error = this.#calculateError(expectedOutput, computedOutput);
-		const adjustValue = this.#calculateAdjust(error, computedOutput, this.#derivateFunction);
+		const adjustValue = calculateAdjust(expectedOutput, computedOutput, this.#derivateFunction);
 
-		this.#adjust(inputs, adjustValue, this.#learningRate);
-	}
-
-	/**
-	 * Adjusts the weights and bias of the neuron based on the inputs, the calculated gradient, and the learning rate.
-	 * This method is crucial for the neuron's learning process, as it modifies the internal parameters to minimize
-	 * the error between the expected output and the obtained output.
-	 * @param {*} inputs 
-	 * @param {number} gradient 
-	 * @param {number} learningRate 
-	 */
-	#adjust(inputs, gradient, learningRate) {
-		for (let i = 0; i < this.#inputsNumber; i++) {
-			this.#weights[i] += inputs[i] * gradient * learningRate;
-		}
-		this.#bias += gradient * learningRate;
-	}
-
-	#calculateError(expectedOutput, obtainedOutput) {
-		return expectedOutput - obtainedOutput;
-	}
-
-	#calculateAdjust(error, generatedOutput, derivateFunction) {
-		return error * derivateFunction(generatedOutput);
+		this.adjust(inputs, adjustValue, this.#learningRate);
 	}
 }
 
